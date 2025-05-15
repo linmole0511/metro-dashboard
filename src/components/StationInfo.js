@@ -272,8 +272,8 @@ const StationInfo = () => {
         }
     };
 
-    // 站点坐标数据
-    const line1Stations = [
+    // 使用 useMemo 包装站点坐标数据
+    const line1Stations = useMemo(() => [
         { name: "朝天门", lng: 106.585845, lat: 29.564142 },
         { name: "小什字", lng: 106.583593, lat: 29.560028 },
         { name: "较场口", lng: 106.574352, lat: 29.553575 },
@@ -299,15 +299,12 @@ const StationInfo = () => {
         { name: "大学城", lng: 106.308908, lat: 29.60735 },
         { name: "尖顶坡", lng: 106.292967, lat: 29.607324 },
         { name: "璧山", lng: 106.23261, lat: 29.61225 }
-    ];
+    ], []);
 
     // 周边设施数据
     const [nearbyPlaces, setNearbyPlaces] = useState([]);
     const [loadingPlaces, setLoadingPlaces] = useState(false);
     const [placesError, setPlacesError] = useState(null);
-
-    // 换乘站列表
-    const transferStations = ["大坪", "两路口", "较场口", "小什字", "沙坪坝", "小龙坎", "石桥铺", "歇台子", "七星岗"];
 
     const station = stationData[stationName] || {
         name: `${stationName}站`,
@@ -319,8 +316,8 @@ const StationInfo = () => {
         status: "正常运营"
     };
 
-    // 站点名到CSV列名映射（原有，带括号）
-    const stationNameToCsvKey = {
+    // 使用 useMemo 包装站点名到CSV列名映射
+    const stationNameToCsvKey = useMemo(() => ({
         "朝天门": "S1(换乘站)",
         "小什字": "S2",
         "较场口": "S3(换乘站)",
@@ -343,10 +340,10 @@ const StationInfo = () => {
         "赖家桥": "S20",
         "微电园": "S21",
         "陈家桥": "S22",
-    };
+    }), []);
 
-    // 站点名到编号映射（新增，无括号，仅用于接口请求）
-    const stationNameToCode = {
+    // 使用 useMemo 包装站点名到编号映射
+    const stationNameToCode = useMemo(() => ({
         "朝天门": "S1",
         "小什字": "S2",
         "较场口": "S3",
@@ -369,7 +366,7 @@ const StationInfo = () => {
         "赖家桥": "S20",
         "微电园": "S21",
         "陈家桥": "S22"
-    };
+    }), []);
 
     // 雷达图状态
     const [tendencyData, setTendencyData] = useState(null);
@@ -493,7 +490,7 @@ const StationInfo = () => {
                 console.error('加载高德地图失败:', err);
             });
         }
-    }, []);
+    }, [map]);
 
     // 获取周边设施数据
     useEffect(() => {
@@ -534,7 +531,7 @@ const StationInfo = () => {
             }
         };
         fetchNearbyPlaces();
-    }, [stationName]);
+    }, [stationName, line1Stations]);
 
     // 点击POI时弹窗
     const handlePlaceClick = (place) => {
@@ -640,7 +637,7 @@ const StationInfo = () => {
                 setModalMap(null);
             }
         };
-    }, [showMapModal, selectedPOI, stationName]);
+    }, [showMapModal, selectedPOI, stationName, line1Stations]);
 
     useEffect(() => {
         if (showMapModal && modalMap) {
@@ -753,7 +750,7 @@ const StationInfo = () => {
                 setDownTrendFlowArray([]);
             })
             .finally(() => setLoading(false));
-    }, [stationName, direction]);
+    }, [stationName, direction, stationNameToCode, stationNameToCsvKey]);
 
     useEffect(() => {
         const stationCode = stationNameToCode[stationName];
@@ -803,7 +800,7 @@ const StationInfo = () => {
             }
         }
         fetchExcelTendency();
-    }, [stationName, direction]);
+    }, [stationName, direction, stationNameToCode, stationNameToCsvKey]);
 
     // 选取当前方向的数据
     const currentTimeArray = direction === 'up' ? trendTimeArray : downTrendTimeArray;
@@ -1030,27 +1027,6 @@ const StationInfo = () => {
         const relVal = Number(tendencyData.col8Values[selectedTimeIndex]);
         relativeText = getRelativeScoreText(relVal);
     }
-
-    // 可以添加一个批量检查函数
-    const checkStationData = async (stationCode) => {
-        const files = [
-            `/${stationCode}上行态势指标.xlsx`,
-            `/${stationCode}下行态势指标.xlsx`,
-            `/${stationCode}上行态势指标计算结果.xlsx`,
-            `/${stationCode}下行态势指标计算结果.xlsx`
-        ];
-        
-        for (const file of files) {
-            try {
-                const res = await fetch(file);
-                if (!res.ok) {
-                    console.error(`${stationCode} 缺少文件: ${file}`);
-                }
-            } catch (err) {
-                console.error(`${stationCode} 文件检查失败: ${file}`, err);
-            }
-        }
-    };
 
     return (
         <div className="station-info">

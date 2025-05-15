@@ -1,18 +1,8 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
 import AMapLoader from '@amap/amap-jsapi-loader';
 import StationInfo from './components/StationInfo';
 import './App.css';
-
-function getCurrentTimeWindow() {
-    const now = new Date();
-    const hour = now.getHours();
-    const minute = now.getMinutes();
-    if (minute < 15) return `${hour}:00-${hour}:15`;
-    if (minute < 30) return `${hour}:15-${hour}:30`;
-    if (minute < 45) return `${hour}:30-${hour}:45`;
-    return `${hour}:45-${hour+1}:00`;
-}
 
 function MapComponent() {
     const navigate = useNavigate();
@@ -29,9 +19,6 @@ function MapComponent() {
     const mapContainerRef = useRef(null);
     const [crowdingData, setCrowdingData] = useState(null);
 
-    // 换乘站列表
-    const transferStations = ["大坪", "两路口", "较场口", "小什字", "沙坪坝", "小龙坎", "石桥铺", "歇台子", "七星岗"];
-
     // 拥挤度图标
     const crowdingIcons = {
         crowded: '/crowded-icon.png',
@@ -39,8 +26,8 @@ function MapComponent() {
         normal: '/normal-icon.png'
     };
 
-    // 站点编号映射
-    const stationCodeMap = {
+    // 使用 useMemo 包装站点编号映射
+    const stationCodeMap = useMemo(() => ({
         "朝天门": "S1",
         "小什字": "S2",
         "较场口": "S3",
@@ -66,7 +53,36 @@ function MapComponent() {
         "大学城": "S23",
         "尖顶坡": "S24",
         "璧山": "S25"
-    };
+    }), []);
+
+    // 使用 useMemo 包装换乘站数组
+    const transferStations = useMemo(() => [
+        "大坪", "两路口", "较场口", "小什字", "沙坪坝", "小龙坎", "石桥铺", "歇台子", "七星岗"
+    ], []);
+
+    // 将 handleStationClick 移到前面并使用 useCallback 包装
+    const handleStationClick = useCallback((station) => {
+        if (!station) {
+            console.warn('站点数据为空');
+            return;
+        }
+
+        setSelectedStation(station);
+        console.log('selectedStation.name:', station.name);
+        
+        if (!scheduleData) {
+            console.warn('时刻表数据未加载完成');
+            return;
+        }
+
+        // 检查站点数据是否存在
+        if (!scheduleData.down || !scheduleData.down[station.name]) {
+            console.warn(`站点 ${station.name} 的时刻表数据不存在`);
+            return;
+        }
+
+        console.log('站点时刻表数据:', scheduleData.down[station.name]);
+    }, [scheduleData]);
 
     // 加载拥挤度数据
     useEffect(() => {
@@ -121,68 +137,12 @@ function MapComponent() {
         fetchCrowdingData();
     }, []);
 
-    // 获取当前时间窗口
-    const getCurrentTimeWindow = () => {
-        const now = new Date();
-        const hour = now.getHours();
-        const minute = now.getMinutes();
-        
-        // 确定15分钟区间
-        let startMinute = Math.floor(minute / 15) * 15;
-        let endMinute = startMinute + 15;
-        
-        // 处理小时进位
-        let endHour = hour;
-        if (endMinute === 60) {
-            endMinute = 0;
-            endHour = hour + 1;
-        }
-        
-        // 格式化时间，确保两位数
-        const formatTime = (h, m) => `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
-        const timeWindow = `${formatTime(hour, startMinute)}-${formatTime(endHour, endMinute)}`;
-        console.log('当前时间窗口:', timeWindow);
-        return timeWindow;
-    };
-
     // 判断是否为工作日
     const isWorkday = () => {
         const now = new Date();
         const day = now.getDay();
         // 0是周日，6是周六
         return day !== 0 && day !== 6;
-    };
-
-    // 判断是否为节假日（这里需要维护一个节假日列表）
-    const isHoliday = () => {
-        const now = new Date();
-        const dateStr = now.toISOString().split('T')[0];
-        // 这里可以维护一个节假日列表，或者调用节假日API
-        const holidays = [
-            '2024-01-01', // 元旦
-            '2024-02-10', // 春节
-            '2024-02-11',
-            '2024-02-12',
-            '2024-02-13',
-            '2024-02-14',
-            '2024-02-15',
-            '2024-02-16',
-            '2024-02-17',
-            '2024-04-04', // 清明节
-            '2024-05-01', // 劳动节
-            '2024-05-02',
-            '2024-05-03',
-            '2024-06-10', // 端午节
-            '2024-09-15', // 中秋节
-            '2024-10-01', // 国庆节
-            '2024-10-02',
-            '2024-10-03',
-            '2024-10-04',
-            '2024-10-05',
-            '2024-10-06',
-            '2024-10-07'
-        ];
-        return holidays.includes(dateStr);
     };
 
     // 根据拥挤度百分比确定拥挤等级
@@ -289,7 +249,7 @@ function MapComponent() {
         updateCrowdingLevel();
         const timer = setInterval(updateCrowdingLevel, getUpdateInterval());
         return () => clearInterval(timer);
-    }, [now, selectedStation, crowdingData, direction]);
+    }, [now, selectedStation, crowdingData, direction, stationCodeMap, transferStations]);
 
     useEffect(() => {
         const fetchScheduleData = async () => {
@@ -475,7 +435,7 @@ function MapComponent() {
                 setError(err.message);
             });
         }
-    }, [map, navigate, enableMapNavigation]);
+    }, [map, navigate, enableMapNavigation, handleStationClick, transferStations]);
 
     // 新增：地图 click 事件绑定，依赖 map 和 enableMapNavigation
     useEffect(() => {
@@ -520,29 +480,6 @@ function MapComponent() {
     useEffect(() => {
         enableMapNavigationRef.current = enableMapNavigation;
     }, [enableMapNavigation]);
-
-    const handleStationClick = (station) => {
-        if (!station) {
-            console.warn('站点数据为空');
-            return;
-        }
-
-        setSelectedStation(station);
-        console.log('selectedStation.name:', station.name);
-        
-        if (!scheduleData) {
-            console.warn('时刻表数据未加载完成');
-            return;
-        }
-
-        // 检查站点数据是否存在
-        if (!scheduleData.down || !scheduleData.down[station.name]) {
-            console.warn(`站点 ${station.name} 的时刻表数据不存在`);
-            return;
-        }
-
-        console.log('站点时刻表数据:', scheduleData.down[station.name]);
-    };
 
     const getCrowdingColor = (level) => {
         switch (level) {
@@ -599,9 +536,28 @@ function MapComponent() {
     };
 
     // 获取当前时间窗口
-    const currentTimeWindow = getCurrentTimeWindow();
-    // 获取当前站点编号
-    const currentStationCode = selectedStation ? selectedStation.code || selectedStation.name : null;
+    const getCurrentTimeWindow = () => {
+        const now = new Date();
+        const hour = now.getHours();
+        const minute = now.getMinutes();
+        
+        // 确定15分钟区间
+        let startMinute = Math.floor(minute / 15) * 15;
+        let endMinute = startMinute + 15;
+        
+        // 处理小时进位
+        let endHour = hour;
+        if (endMinute === 60) {
+            endMinute = 0;
+            endHour = hour + 1;
+        }
+        
+        // 格式化时间，确保两位数
+        const formatTime = (h, m) => `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+        const timeWindow = `${formatTime(hour, startMinute)}-${formatTime(endHour, endMinute)}`;
+        console.log('当前时间窗口:', timeWindow);
+        return timeWindow;
+    };
 
     // 终点站定义
     const upDirectionEnd = "朝天门";
