@@ -501,7 +501,7 @@ const StationInfo = () => {
             try {
                 const station = line1Stations.find(s => s.name === stationName);
                 if (!station) throw new Error('未找到站点数据');
-                const url = `http://localhost:3001/api/nearby?lng=${station.lng}&lat=${station.lat}&radius=2000`;
+                const url = `/.netlify/functions/nearby?lng=${station.lng}&lat=${station.lat}&radius=2000`;
                 const response = await fetch(url);
                 if (!response.ok) throw new Error('高德API响应异常');
                 const data = await response.json();
