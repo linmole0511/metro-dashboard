@@ -667,7 +667,7 @@ const StationInfo = () => {
         setError(null);
 
         const fileName = direction === 'up' ? 'up_flow_8_10.csv' : 'down_flow_8_10.csv';
-        const filePath = `http://localhost:3001/${fileName}`;
+        const filePath = `https://linmole0511.github.io/metro-dashboard/${fileName}`;
         console.log(`热力图 CSV加载 - 正在加载文件: ${filePath}`);
 
         fetch(filePath)
